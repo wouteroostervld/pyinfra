@@ -5,12 +5,13 @@ Manage BSD packages and repositories. Note that BSD package names are case-sensi
 from __future__ import unicode_literals
 
 from pyinfra.api import operation
+from pyinfra.api.exceptions import OperationError
 
 from .util.packaging import ensure_packages
 
 
 @operation
-def packages(packages=None, present=True, pkg_path=None, state=None, host=None):
+def packages(packages=None, present=True, upgrade=False, pkg_path=None, state=None, host=None):
     '''
     Install/remove/update pkg packages. This will use ``pkg ...`` where available
     (FreeBSD) and the ``pkg_*`` variants elsewhere.
@@ -61,3 +62,29 @@ def packages(packages=None, present=True, pkg_path=None, state=None, host=None):
         install_command=install_command,
         uninstall_command=uninstall_command,
     )
+
+    if upgrade:
+        os = host.fact.os
+
+        if not host.fact.os == 'FreeBSD':
+            raise OperationError("Operation pkg.package upgrade=True not implemented for {0}".format(os))
+
+        fresh=host.fact.pkg_fresh_packages
+        if fresh:
+            if packages:
+                fresh = host.fact.pkg_fresh_packages
+                for package in packages:
+                    if package in fresh:
+                        yield 'pkg upgrade -y {0}'.format(package)
+            else:
+               yield 'pkg upgrade -y' 
+
+
+@operation
+def update(packages=None,state=None, host=None):
+    os = host.fact.os
+
+    if not host.fact.os == 'FreeBSD':
+        raise OperationError("Operation pkg.update not implemented for {0}".format(os))
+
+    yield 'pkg update'
